@@ -1,116 +1,145 @@
 using UnityEngine;
 using System.IO.Ports;
+using System.Threading;
+using System.Collections.Generic;
 using UnityEngine.UI;
 
 public class ArduinoInput : MonoBehaviour
 {
-    SerialPort port;
+    private SerialPort port;
+    private Thread readThread;
+    private bool isRunning = false;
 
-    // === 狀態資料 ===
-    public int mood = 50;      // 心情
-    public int feed = 0;       // 餵食狀態（你可以自訂最大值）
-    public int exp = 0;        // 經驗值（累積打/摸/餵食）
+    private Queue<string> commandQueue = new Queue<string>();
+    private object queueLock = new object();
 
-    // === UI ===
+    // === 狀態 ===
+    public int mood = 50;
+    public int feed = 0;
+    public int exp = 0;
+    public int evolveExp = 200;
+
+    // UI
     public Slider moodSlider;
     public Slider feedSlider;
     public Slider expSlider;
 
-    public Image petImage;         // 顯示寵物圖片用
-    public Sprite normalSprite;    // 心情普通
-    public Sprite happySprite;     // 心情好
-    public Sprite angrySprite;     // 心情差
-
-    public Sprite evolveSprite;    // 進化後的圖片（可選）
-
-    public int evolveExp = 200;    // 達到這個經驗值就進化
+    // 寵物圖片控制
+    public PetVisualController petVisual;
 
     void Start()
     {
         port = new SerialPort("COM3", 9600);
-        port.ReadTimeout = 50;
-        port.Open();
+        port.ReadTimeout = 100;
 
-        // 初始化 Slider
+        try { port.Open(); }
+        catch { Debug.LogError("❌ 無法開啟序列埠 COM3"); }
+
+        isRunning = true;
+        readThread = new Thread(ReadSerialLoop);
+        readThread.Start();
+
         moodSlider.value = mood;
         feedSlider.value = feed;
         expSlider.value = exp;
+    }
+
+    void OnDestroy()
+    {
+        isRunning = false;
+        if (readThread != null) readThread.Join();
+        if (port != null && port.IsOpen) port.Close();
+    }
+
+    void ReadSerialLoop()
+    {
+        while (isRunning)
+        {
+            if (port != null && port.IsOpen)
+            {
+                try
+                {
+                    string line = port.ReadLine().Trim();
+                    lock (queueLock) commandQueue.Enqueue(line);
+                }
+                catch { }
+            }
+        }
     }
 
     void Update()
-{
-    if (!port.IsOpen) return;
-
-    try
     {
-        // ================================
-        // 1. 讀取 Arduino 指令
-        // ================================
-        string input = port.ReadLine().Trim();
+        // 讀取 Arduino 指令並處理
+        while (true)
+        {
+            string cmd = null;
+            lock (queueLock)
+            {
+                if (commandQueue.Count > 0)
+                    cmd = commandQueue.Dequeue();
+                else break;
+            }
 
-        // 長按：撫摸
-        if (input == "HOLD")
-        {
-            Debug.Log("撫摸 (HOLD)");
-            mood += 10;
-            exp += 10;
-        }
-        // 點一下：餵食
-        else if (input == "CLICK")
-        {
-            Debug.Log("餵食 (CLICK)");
-            feed += 5;
-            mood += 5;
-            exp += 5;
-        }
-        // 快速連點：打一下
-        else if (input == "DOUBLE")
-        {
-            Debug.Log("打擊 (DOUBLE)");
-            mood -= 15;
-            exp += 2;     // 打擊也算少量經驗
+            if (cmd != null)
+                ProcessCommand(cmd);
         }
 
-        // ================================
-        // 2. 限制所有遊戲數值範圍
-        // ================================
-        mood = Mathf.Clamp(mood, 0, 100);
-        feed = Mathf.Clamp(feed, 0, 100);
-        exp = Mathf.Clamp(exp, 0, 1000);
-
-        // ================================
-        // 3. 更新 UI Slider 數值
-        // ================================
+        // 更新 UI
         moodSlider.value = mood;
         feedSlider.value = feed;
         expSlider.value = exp;
 
-        // ================================
-        // 4. 根據心情／經驗更新寵物圖片
-        // ================================
-        if (exp >= evolveExp)
+        // 更新 Idle 狀態圖片（不播動畫時才會套用）
+        if (!petVisual.IsChoking())   // 噎住時不切 Idle
+            petVisual.ShowState(mood, feed, exp, evolveExp);
+
+        // 回傳 mood 到 Arduino
+        if (port.IsOpen)
+            port.WriteLine("MOOD:" + mood);
+    }
+
+    // =====================================
+    // 接收到 Arduino 指令後 → 處理狀態＋播動畫
+    // =====================================
+    void ProcessCommand(string input)
+    {
+        Debug.Log("收到 Arduino 指令: " + input);
+
+        if (input == "HOLD")  // 撫摸
         {
-            // 進化圖片
-            petImage.sprite = evolveSprite;
+            mood += 10;
+            exp += 10;
+            petVisual.PlayPet();
         }
-        else
+        else if (input == "CLICK")    // 餵食
         {
-            if (mood >= 70)
-                petImage.sprite = happySprite;
-            else if (mood >= 40)
-                petImage.sprite = normalSprite;
-            else
-                petImage.sprite = angrySprite;
+            feed += 5;
+            mood += 5;
+            exp += 5;
+            petVisual.PlayEat();
+
+            // 模擬噎住（如果你要使用）
+            if (feed >= 90)
+                petVisual.StartChoke();
+        }
+        else if (input == "DOUBLE")  // 打擊
+        {
+            mood -= 15;
+            exp += 2;
+            petVisual.PlayHit();
+
+            // 被打時也可能噎住
+            if (Random.value < 0.1f)
+                petVisual.StartChoke();
+        }
+        else if (input == "TAP")   // 假設 Arduino 傳這個來代表拍背
+        {
+            petVisual.AddChokeProgress();
         }
 
-        // ================================
-        // 5. 回傳最新 mood 給 Arduino → 控制 LED
-        // ================================
-        port.WriteLine("MOOD:" + mood);
+        // 限制數值
+        mood = Mathf.Clamp(mood, 0, 100);
+        feed = Mathf.Clamp(feed, 0, 100);
+        exp = Mathf.Clamp(exp, 0, 1000);
     }
-    catch
-    {
-        // 忽略 Serial Timeout 避免卡住
-    }
-}
 }
