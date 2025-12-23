@@ -1,17 +1,25 @@
 using UnityEngine;
 using UnityEngine.UI;
+using TMPro;
 using System.Collections;
+
+[System.Serializable]
+public class PetStageVisuals
+{
+    public Sprite normalSprite;
+    public Sprite happySprite;
+    public Sprite angrySprite;
+}
 
 public class PetVisualController : MonoBehaviour
 {
     [Header("主圖片顯示")]
     public Image petImage;
 
-    [Header("狀態圖片")]
-    public Sprite normalSprite;
-    public Sprite happySprite;
-    public Sprite angrySprite;
-    public Sprite evolveSprite;
+    [Header("各階段狀態圖片")]
+    public PetStageVisuals stage1Visuals;
+    public PetStageVisuals stage2Visuals;
+    public PetStageVisuals stage3Visuals;
 
     [Header("動作圖片")]
     public Sprite eatSprite;      // 吃飯咀嚼動畫
@@ -21,33 +29,53 @@ public class PetVisualController : MonoBehaviour
 
     [Header("噎住 UI")]
     public GameObject chokeProgressBar;
-    public Slider chokeSlider;
+    public Image chokeBar;
+    public TMP_Text chokeText;
+
+    [Header("UI 進度條")]
+    public Image moodBar;
+    public TMP_Text moodText;
+    public Image feedBar;
+    public TMP_Text feedText;
+    public Image expBar;
+    public TMP_Text expText;
+    public TMP_Text levelText;
 
     private bool isChoking = false;
-    private int chokeCount = 0;
 
     private Coroutine currentAction = null;
 
     // ========================
     // 顯示靜態狀態圖（回到 Idle）
     // ========================
-    public void ShowState(int mood, int feed, int exp, int evolveExp)
+    public void ShowState(GameManager.PetStage stage, int mood)
     {
-        if (exp >= evolveExp)
-        {
-            petImage.sprite = evolveSprite;
-            return;
-        }
+        if (petImage == null) return;
 
-        // 你可以改成根據 feed 顯示不同臉
-        if (feed >= 80)
-            petImage.sprite = happySprite;
-        else if (mood >= 70)
-            petImage.sprite = happySprite;
+        PetStageVisuals visuals = GetVisualsForStage(stage);
+        if (visuals == null) return;
+
+        Sprite targetSprite = null;
+        if (mood >= 70)
+            targetSprite = visuals.happySprite;
         else if (mood >= 40)
-            petImage.sprite = normalSprite;
+            targetSprite = visuals.normalSprite;
         else
-            petImage.sprite = angrySprite;
+            targetSprite = visuals.angrySprite;
+
+        if (targetSprite != null)
+            petImage.sprite = targetSprite;
+    }
+
+    PetStageVisuals GetVisualsForStage(GameManager.PetStage stage)
+    {
+        switch (stage)
+        {
+            case GameManager.PetStage.Stage1: return stage1Visuals;
+            case GameManager.PetStage.Stage2: return stage2Visuals;
+            case GameManager.PetStage.Stage3: return stage3Visuals;
+            default: return stage1Visuals;
+        }
     }
 
     // ========================
@@ -61,7 +89,8 @@ public class PetVisualController : MonoBehaviour
 
     IEnumerator EatAnimation()
     {
-        petImage.sprite = eatSprite;
+        if (eatSprite != null)
+            petImage.sprite = eatSprite;
         yield return new WaitForSeconds(1f);
         currentAction = null;
     }
@@ -77,7 +106,8 @@ public class PetVisualController : MonoBehaviour
 
     IEnumerator HitAnimation()
     {
-        petImage.sprite = hitSprite;
+        if (hitSprite != null)
+            petImage.sprite = hitSprite;
         yield return new WaitForSeconds(0.3f);
         currentAction = null;
     }
@@ -93,45 +123,64 @@ public class PetVisualController : MonoBehaviour
 
     IEnumerator PetAnimation()
     {
-        petImage.sprite = petSprite;
+        if (petSprite != null)
+            petImage.sprite = petSprite;
         yield return new WaitForSeconds(0.5f);
         currentAction = null;
     }
 
     // ========================
-    // 4. 噎住狀態
+    // 噎住狀態
     // ========================
-    public void StartChoke()
+    public void StartChoke(int current, int goal)
     {
         isChoking = true;
-        chokeCount = 0;
         chokeProgressBar.SetActive(true);
-        chokeSlider.value = 0;
+        if (chokeBar != null) chokeBar.fillAmount = 0;
+        if (chokeText != null) chokeText.text = $"{current}/{goal}";
 
         if (currentAction != null) StopCoroutine(currentAction);
 
-        petImage.sprite = chokeSprite;
+        if (chokeSprite != null)
+            petImage.sprite = chokeSprite;
     }
 
-    public void AddChokeProgress()
+    public void UpdateChokeProgress(float progress, int current, int goal)
     {
         if (!isChoking) return;
-
-        chokeCount++;
-        chokeSlider.value = (float)chokeCount / 20f;
-
-        if (chokeCount >= 20)
-            StopChoke();
+        if (chokeBar != null) chokeBar.fillAmount = progress;
+        if (chokeText != null) chokeText.text = $"{current}/{goal}";
     }
 
-    public void StopChoke()
+    public void StopChoke(GameManager.PetStage stage, int mood)
     {
         isChoking = false;
         chokeProgressBar.SetActive(false);
+        ShowState(stage, mood);
     }
 
     public bool IsChoking()
     {
         return isChoking;
+    }
+
+    public bool IsPlayingAnimation()
+    {
+        return currentAction != null;
+    }
+
+    // ========================
+    // 更新 UI 顯示
+    // ========================
+    public void UpdateUI(int mood, int feed, int exp, int maxMood, int maxFeed, int maxExp, int level)
+    {
+        if (moodBar != null) moodBar.fillAmount = (float)mood / maxMood;
+        if (feedBar != null) feedBar.fillAmount = (float)feed / maxFeed;
+        if (expBar != null) expBar.fillAmount = (float)exp / maxExp;
+
+        if (moodText != null) moodText.text = $"{mood}/{maxMood}";
+        if (feedText != null) feedText.text = $"{feed}/{maxFeed}";
+        if (expText != null) expText.text = $"{exp}/{maxExp}";
+        if (levelText != null) levelText.text = $"Level {level}";
     }
 }

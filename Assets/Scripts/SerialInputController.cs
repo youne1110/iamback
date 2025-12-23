@@ -13,19 +13,13 @@ public class SerialInputController : MonoBehaviour
     private Queue<string> commandQueue = new Queue<string>();
     private object queueLock = new object();
 
-    // === 狀態 ===
-    public int mood = 50;
-    public int feed = 0;
-    public int exp = 0;
-    public int evolveExp = 200;
+    // GameManager 引用
+    public GameManager gameManager;
 
-    // UI
-    public Slider moodSlider;
-    public Slider feedSlider;
-    public Slider expSlider;
-
-    // 寵物圖片控制
-    public PetVisualController petVisual;
+    public bool IsArduinoConnected()
+    {
+        return port != null && port.IsOpen;
+    }
 
     void Start()
     {
@@ -39,9 +33,8 @@ public class SerialInputController : MonoBehaviour
         readThread = new Thread(ReadSerialLoop);
         readThread.Start();
 
-        moodSlider.value = mood;
-        feedSlider.value = feed;
-        expSlider.value = exp;
+        if (gameManager == null)
+            gameManager = GameManager.Instance;
     }
 
     void OnDestroy()
@@ -69,6 +62,9 @@ public class SerialInputController : MonoBehaviour
 
     void Update()
     {
+        // 鍵盤測試輸入
+        ProcessKeyboardInput();
+
         // 讀取 Arduino 指令並處理
         while (true)
         {
@@ -84,62 +80,63 @@ public class SerialInputController : MonoBehaviour
                 ProcessCommand(cmd);
         }
 
-        // 更新 UI
-        moodSlider.value = mood;
-        feedSlider.value = feed;
-        expSlider.value = exp;
-
-        // 更新 Idle 狀態圖片（不播動畫時才會套用）
-        if (!petVisual.IsChoking())   // 噎住時不切 Idle
-            petVisual.ShowState(mood, feed, exp, evolveExp);
+        // 更新 Idle 狀態圖片的邏輯現在由 GameManager 統一呼叫
+        // 這裡只需要處理輸入和回傳
 
         // 回傳 mood 到 Arduino
-        if (port.IsOpen)
-            port.WriteLine("MOOD:" + mood);
+        if (port != null && port.IsOpen)
+            port.WriteLine("MOOD:" + gameManager.mood);
     }
 
     // =====================================
-    // 接收到 Arduino 指令後 → 處理狀態＋播動畫
+    // 鍵盤測試輸入 (編輯器專用)
+    // =====================================
+    void ProcessKeyboardInput()
+    {
+#if UNITY_EDITOR
+        if (Input.GetKeyDown(KeyCode.A))       // 餵食 (CLICK)
+        {
+            gameManager.OnFeed();
+        }
+        else if (Input.GetKeyDown(KeyCode.S))      // 撫摸 (HOLD)
+        {
+            gameManager.OnPet();
+        }
+        else if (Input.GetKeyDown(KeyCode.D))      // 打擊 (DOUBLE)
+        {
+            gameManager.OnHit();
+        }
+        else if (Input.GetKeyDown(KeyCode.F))      // 拍背 (TAP) - 只在噎住時有效
+        {
+            if (gameManager.IsChoking())
+                gameManager.OnTap();
+        }
+#endif
+    }
+
+    // =====================================
+    // 接收到 Arduino 指令後 → 委派給 GameManager
     // =====================================
     void ProcessCommand(string input)
     {
         Debug.Log("收到 Arduino 指令: " + input);
 
-        if (input == "HOLD")  // 撫摸
+        if (input == "HOLD")
         {
-            mood += 10;
-            exp += 10;
-            petVisual.PlayPet();
+            gameManager.OnPet();
         }
-        else if (input == "CLICK")    // 餵食
+        else if (input == "CLICK")
         {
-            feed += 5;
-            mood += 5;
-            exp += 5;
-            petVisual.PlayEat();
-
-            // 模擬噎住（如果你要使用）
-            if (feed >= 90)
-                petVisual.StartChoke();
+            gameManager.OnFeed();
         }
-        else if (input == "DOUBLE")  // 打擊
+        else if (input == "DOUBLE")
         {
-            mood -= 15;
-            exp += 2;
-            petVisual.PlayHit();
-
-            // 被打時也可能噎住
-            if (Random.value < 0.1f)
-                petVisual.StartChoke();
+            gameManager.OnHit();
         }
-        else if (input == "TAP")   // 假設 Arduino 傳這個來代表拍背
+        else if (input == "TAP")
         {
-            petVisual.AddChokeProgress();
+            if (gameManager.IsChoking())
+                gameManager.OnTap();
         }
-
-        // 限制數值
-        mood = Mathf.Clamp(mood, 0, 100);
-        feed = Mathf.Clamp(feed, 0, 100);
-        exp = Mathf.Clamp(exp, 0, 1000);
     }
 }
