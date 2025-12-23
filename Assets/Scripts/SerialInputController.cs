@@ -4,7 +4,7 @@ using System.Threading;
 using System.Collections.Generic;
 using UnityEngine.UI;
 
-public class ArduinoInput : MonoBehaviour
+public class SerialInputController : MonoBehaviour
 {
     private SerialPort port;
     private Thread readThread;
