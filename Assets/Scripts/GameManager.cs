@@ -19,6 +19,29 @@ public class GameManager : MonoBehaviour
     [Header("當前階段")]
     public PetStage currentStage = PetStage.Stage1;
 
+    [Header("數值變化單位")]
+    [Tooltip("餵食時增加的飽食度")]
+    public int feedIncreaseOnFeed = 5;
+    [Tooltip("餵食時增加的心情")]
+    public int moodIncreaseOnFeed = 5;
+    [Tooltip("餵食時增加的經驗值")]
+    public int expIncreaseOnFeed = 5;
+    
+    [Tooltip("撫摸時增加的心情")]
+    public int moodIncreaseOnPet = 10;
+    [Tooltip("撫摸時增加的經驗值")]
+    public int expIncreaseOnPet = 10;
+    
+    [Tooltip("打擊時減少的心情")]
+    public int moodDecreaseOnHit = 15;
+    [Tooltip("打擊時增加的經驗值")]
+    public int expIncreaseOnHit = 2;
+    
+    [Tooltip("嘔吐時減少的飽食度")]
+    public int feedDecreaseOnVomit = 20;
+    [Tooltip("嘔吐時減少的心情")]
+    public int moodDecreaseOnVomit = 10;
+
     [Header("引用")]
     public PetVisualController petVisual;
     public SerialInputController serialController;
@@ -79,9 +102,9 @@ public class GameManager : MonoBehaviour
     {
         if (isVomiting) return; // 噎住時不能餵食
 
-        feed += 5;
-        mood += 5;
-        exp += 5;
+        feed += feedIncreaseOnFeed;
+        mood += moodIncreaseOnFeed;
+        exp += expIncreaseOnFeed;
 
         consecutiveFeedCount++;
 
@@ -103,8 +126,8 @@ public class GameManager : MonoBehaviour
 
         consecutiveFeedCount = 0; // 重置連續餵食計數
 
-        mood += 10;
-        exp += 10;
+        mood += moodIncreaseOnPet;
+        exp += expIncreaseOnPet;
         petVisual.PlayPet();
         ClampStats();
     }
@@ -115,8 +138,8 @@ public class GameManager : MonoBehaviour
 
         consecutiveFeedCount = 0; // 重置連續餵食計數
 
-        mood -= 15;
-        exp += 2;
+        mood -= moodDecreaseOnHit;
+        exp += expIncreaseOnHit;
         petVisual.PlayHit();
         ClampStats();
     }
@@ -138,8 +161,8 @@ public class GameManager : MonoBehaviour
     void TriggerVomit()
     {
         isVomiting = true;
-        feed = Mathf.Max(0, feed - 20);
-        mood = Mathf.Max(0, mood - 10);
+        feed = Mathf.Max(0, feed - feedDecreaseOnVomit);
+        mood = Mathf.Max(0, mood - moodDecreaseOnVomit);
         consecutiveFeedCount = 0;
 
         chokeCount = 0;
