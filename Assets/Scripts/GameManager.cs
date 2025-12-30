@@ -245,54 +245,54 @@ public class GameManager : MonoBehaviour
         return isVomiting;
     }
 
-    void OnGUI()
-    {
-        GUIStyle titleStyle = new GUIStyle(GUI.skin.box);
-        titleStyle.fontSize = 24;
-        titleStyle.alignment = TextAnchor.MiddleCenter;
-        titleStyle.normal.textColor = Color.black;
+    // void OnGUI()
+    // {
+    //     GUIStyle titleStyle = new GUIStyle(GUI.skin.box);
+    //     titleStyle.fontSize = 24;
+    //     titleStyle.alignment = TextAnchor.MiddleCenter;
+    //     titleStyle.normal.textColor = Color.black;
 
-        GUIStyle labelStyle = new GUIStyle(GUI.skin.label);
-        labelStyle.fontSize = 20;
-        labelStyle.normal.textColor = Color.black;
+    //     GUIStyle labelStyle = new GUIStyle(GUI.skin.label);
+    //     labelStyle.fontSize = 20;
+    //     labelStyle.normal.textColor = Color.black;
 
-        GUILayout.BeginArea(new Rect(10, 10, 400, 280));
-        GUILayout.Box("操作說明", titleStyle);
+    //     GUILayout.BeginArea(new Rect(10, 10, 400, 280));
+    //     GUILayout.Box("操作說明", titleStyle);
 
-        bool arduinoConnected = serialController != null && serialController.IsArduinoConnected();
+    //     bool arduinoConnected = serialController != null && serialController.IsArduinoConnected();
 
-        if (arduinoConnected)
-        {
-            GUILayout.Label("Arduino 已連接", labelStyle);
-            GUILayout.Space(10);
-            GUILayout.Label("CLICK: 餵食", labelStyle);
-            GUILayout.Label("HOLD: 撫摸", labelStyle);
-            GUILayout.Label("DOUBLE: 打擊", labelStyle);
+    //     if (arduinoConnected)
+    //     {
+    //         GUILayout.Label("Arduino 已連接", labelStyle);
+    //         GUILayout.Space(10);
+    //         GUILayout.Label("CLICK: 餵食", labelStyle);
+    //         GUILayout.Label("HOLD: 撫摸", labelStyle);
+    //         GUILayout.Label("DOUBLE: 打擊", labelStyle);
 
-            if (IsChoking())
-            {
-                GUIStyle rescueStyle = new GUIStyle(labelStyle);
-                rescueStyle.normal.textColor = Color.red;
-                GUILayout.Label("TAP: 拍背救援 ⚠️", rescueStyle);
-            }
-        }
-        else
-        {
-            GUILayout.Label("鍵盤控制", labelStyle);
-            GUILayout.Space(10);
-            GUILayout.Label("A: 餵食", labelStyle);
-            GUILayout.Label("S: 撫摸", labelStyle);
-            GUILayout.Label("D: 打擊", labelStyle);
+    //         if (IsChoking())
+    //         {
+    //             GUIStyle rescueStyle = new GUIStyle(labelStyle);
+    //             rescueStyle.normal.textColor = Color.red;
+    //             GUILayout.Label("TAP: 拍背救援 ⚠️", rescueStyle);
+    //         }
+    //     }
+    //     else
+    //     {
+    //         GUILayout.Label("鍵盤控制", labelStyle);
+    //         GUILayout.Space(10);
+    //         GUILayout.Label("A: 餵食", labelStyle);
+    //         GUILayout.Label("S: 撫摸", labelStyle);
+    //         GUILayout.Label("D: 打擊", labelStyle);
 
-            if (IsChoking())
-            {
-                GUIStyle rescueStyle = new GUIStyle(labelStyle);
-                rescueStyle.normal.textColor = Color.red;
-                GUILayout.Label("F: 拍背救援 ⚠️", rescueStyle);
-            }
-        }
+    //         if (IsChoking())
+    //         {
+    //             GUIStyle rescueStyle = new GUIStyle(labelStyle);
+    //             rescueStyle.normal.textColor = Color.red;
+    //             GUILayout.Label("F: 拍背救援 ⚠️", rescueStyle);
+    //         }
+    //     }
 
-        GUILayout.EndArea();
-    }
+    //     GUILayout.EndArea();
+    // }
 }
 
