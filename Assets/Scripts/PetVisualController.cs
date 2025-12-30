@@ -2,6 +2,9 @@ using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 using System.Collections;
+using System.Collections.Generic;
+using UnityEngine.Playables;
+using UnityEngine.VFX;
 
 [System.Serializable]
 public class PetStageVisuals
@@ -21,7 +24,7 @@ public class PetVisualController : MonoBehaviour
     public PetStageVisuals stage2Visuals;
     public PetStageVisuals stage3Visuals;
 
-    [Header("動作圖片")]
+    [Header("")]
     public Sprite eatSprite;      // 吃飯咀嚼動畫
     public Sprite hitSprite;      // 被打
     public Sprite petSprite;      // 撫摸
@@ -37,6 +40,10 @@ public class PetVisualController : MonoBehaviour
     public GameObject hitVFX;  // shows when PlayHit is triggered
     public GameObject petVFX;  // shows when PlayPet is triggered
     public GameObject chokeVFXInstance; // optional pre-placed choke VFX (preferred)
+
+    [Header("Pet Action Image")]
+    public Image petActionImage; // optional UI Image to show when petting
+    public Sprite petActionSprite; // optional sprite to assign to the above image
 
     [Header("噎住 UI")]
     public GameObject chokeProgressBar;
@@ -55,6 +62,8 @@ public class PetVisualController : MonoBehaviour
     private bool isChoking = false;
 
     private Coroutine currentAction = null;
+    // map from prefab asset -> instantiated runtime instance
+    private Dictionary<GameObject, GameObject> runtimeVFXInstances = new Dictionary<GameObject, GameObject>();
 
     void Awake()
     {
@@ -63,6 +72,14 @@ public class PetVisualController : MonoBehaviour
         if (hitVFX != null) hitVFX.SetActive(false);
         if (petVFX != null) petVFX.SetActive(false);
         if (chokeVFXInstance != null) chokeVFXInstance.SetActive(false);
+
+        // Hide pet action image initially
+        if (petActionImage != null)
+        {
+            petActionImage.gameObject.SetActive(false);
+            if (petActionSprite != null)
+                petActionImage.sprite = petActionSprite;
+        }
 
         // Try to auto-find VisualEffects parent if not assigned
         if (visualEffectsParent == null)
@@ -125,6 +142,8 @@ public class PetVisualController : MonoBehaviour
         if (eatSprite != null)
             petImage.sprite = eatSprite;
         yield return new WaitForSeconds(1f);
+        // hide eat VFX when animation ends
+        HideVFX(eatVFX);
         currentAction = null;
     }
 
@@ -144,6 +163,8 @@ public class PetVisualController : MonoBehaviour
         if (hitSprite != null)
             petImage.sprite = hitSprite;
         yield return new WaitForSeconds(0.3f);
+        // hide hit VFX when animation ends
+        HideVFX(hitVFX);
         currentAction = null;
     }
 
@@ -162,7 +183,19 @@ public class PetVisualController : MonoBehaviour
     {
         if (petSprite != null)
             petImage.sprite = petSprite;
+        // Show pet action image (if assigned)
+        if (petActionImage != null)
+        {
+            if (petActionSprite != null) petActionImage.sprite = petActionSprite;
+            petActionImage.gameObject.SetActive(true);
+        }
         yield return new WaitForSeconds(0.5f);
+        // Hide pet action image after animation
+        if (petActionImage != null)
+            petActionImage.gameObject.SetActive(false);
+        // hide pet VFX when animation ends
+        HideVFX(petVFX);
+
         currentAction = null;
     }
 
@@ -268,33 +301,145 @@ public class PetVisualController : MonoBehaviour
     // Helper: activate a pre-placed VFX (or reparent to VisualEffects if needed) and make it fullscreen
     void ShowVFX(GameObject vfx)
     {
-        if (vfx == null) return;
-
-        // If the VFX is not under the visualEffectsParent, reparent it for organization
-        if (visualEffectsParent != null && vfx.transform.parent != visualEffectsParent)
-            vfx.transform.SetParent(visualEffectsParent, false);
-
-        vfx.SetActive(true);
-        vfx.transform.SetAsLastSibling();
-
-        var rt = vfx.GetComponent<RectTransform>();
-        if (rt != null)
+        if (vfx == null)
         {
-            rt.anchorMin = Vector2.zero;
-            rt.anchorMax = Vector2.one;
-            rt.anchoredPosition = Vector2.zero;
-            rt.sizeDelta = Vector2.zero;
+            Debug.LogWarning("ShowVFX called with null VFX");
+            return;
+        }
+
+        // If the provided GameObject is a prefab asset (not part of a scene), instantiate it under the VisualEffects parent.
+        GameObject instance = null;
+        bool providedIsSceneObject = vfx.scene.IsValid();
+        Debug.Log($"ShowVFX called for '{vfx.name}' (sceneObject={providedIsSceneObject})");
+        if (!providedIsSceneObject)
+        {
+            Transform parent = visualEffectsParent;
+            if (parent == null)
+            {
+                GameObject found = GameObject.Find("VisualEffects");
+                if (found != null) parent = found.transform;
+            }
+
+            instance = Instantiate(vfx, parent);
+            // track mapping so HideVFX can destroy the instance later
+            runtimeVFXInstances[vfx] = instance;
+            Debug.Log($"Instantiated VFX prefab '{vfx.name}' -> instance '{instance.name}' under '{parent?.name}'");
         }
         else
         {
-            vfx.transform.localPosition = Vector3.zero;
-            vfx.transform.localScale = Vector3.one;
+            instance = vfx;
         }
+
+        if (instance == null) return;
+
+        // Activate instance without modifying its transform or scale
+        instance.SetActive(true);
+        Debug.Log($"Activated VFX instance '{instance.name}', parent='{instance.transform.parent?.name}'");
+
+        // Try to (re)start particle systems
+        var particleSystems = instance.GetComponentsInChildren<ParticleSystem>(true);
+        foreach (var ps in particleSystems)
+        {
+            ps.Clear(true);
+            ps.Play(true);
+        }
+        Debug.Log($"VFX '{instance.name}' has {particleSystems.Length} ParticleSystem(s)");
+
+        // Try to (re)start animators
+        var animators = instance.GetComponentsInChildren<Animator>(true);
+        foreach (var anim in animators)
+        {
+            anim.enabled = true;
+            anim.Rebind();
+            anim.Update(0f);
+            anim.Play(0, -1, 0f);
+        }
+        Debug.Log($"VFX '{instance.name}' has {animators.Length} Animator(s)");
+
+        // Try to play Visual Effect Graph (VFX Graph) components
+        var vfxs = instance.GetComponentsInChildren<VisualEffect>(true);
+        foreach (var ve in vfxs)
+        {
+            try { ve.Stop(); } catch { }
+            try { ve.Play(); } catch { }
+        }
+        Debug.Log($"VFX '{instance.name}' has {vfxs.Length} VisualEffect(s)");
+
+        // Try to play PlayableDirector (Timeline) components
+        var directors = instance.GetComponentsInChildren<PlayableDirector>(true);
+        foreach (var d in directors)
+        {
+            try { d.time = 0; d.Play(); } catch { }
+        }
+        Debug.Log($"VFX '{instance.name}' has {directors.Length} PlayableDirector(s)");
+
+        // Respect the prefab/instance's existing transform and scale — do not modify RectTransform or localScale.
     }
 
     void HideVFX(GameObject vfx)
     {
-        if (vfx == null) return;
+        if (vfx == null)
+        {
+            Debug.LogWarning("HideVFX called with null VFX");
+            return;
+        }
+
+        // If the provided object is a prefab asset that we instantiated, its runtime clone is stored in the dictionary.
+        // If HideVFX is called with the original prefab (field), destroy the runtime clone; if called with the runtime clone, destroy it as well.
+        // First check if vfx is a key (prefab) in the mapping
+        if (runtimeVFXInstances.TryGetValue(vfx, out var inst))
+        {
+            // stop particle systems on instance then destroy
+            var psList = inst.GetComponentsInChildren<ParticleSystem>(true);
+            foreach (var ps in psList) ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+            Debug.Log($"Destroying runtime VFX instance '{inst.name}' for prefab '{vfx.name}'");
+            Destroy(inst);
+            runtimeVFXInstances.Remove(vfx);
+            return;
+        }
+
+        // If vfx is an instantiated clone (value), find and remove its key
+        foreach (var kv in new List<KeyValuePair<GameObject, GameObject>>(runtimeVFXInstances))
+        {
+            if (kv.Value == vfx)
+            {
+                var psList = vfx.GetComponentsInChildren<ParticleSystem>(true);
+                foreach (var ps in psList) ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+                Debug.Log($"Destroying runtime VFX instance '{vfx.name}' (matched value)");
+                Destroy(vfx);
+                runtimeVFXInstances.Remove(kv.Key);
+                return;
+            }
+        }
+
+        // Otherwise treat it as a pre-placed scene object: stop systems and deactivate
+        var particleSystems = vfx.GetComponentsInChildren<ParticleSystem>(true);
+        foreach (var ps in particleSystems)
+        {
+            ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+        }
+
+        var animators = vfx.GetComponentsInChildren<Animator>(true);
+        foreach (var anim in animators)
+        {
+            anim.Rebind();
+            anim.Update(0f);
+            anim.enabled = false;
+        }
+
+        var vfxs = vfx.GetComponentsInChildren<VisualEffect>(true);
+        foreach (var ve in vfxs)
+        {
+            try { ve.Stop(); } catch { }
+        }
+
+        var directors = vfx.GetComponentsInChildren<PlayableDirector>(true);
+        foreach (var d in directors)
+        {
+            try { d.Stop(); } catch { }
+        }
+
+        Debug.Log($"Deactivating pre-placed VFX '{vfx.name}' (ParticleSystems={particleSystems.Length}, Animators={animators.Length}, VisualEffects={vfxs.Length}, Directors={directors.Length})");
         vfx.SetActive(false);
     }
 
