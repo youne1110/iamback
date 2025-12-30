@@ -27,6 +27,17 @@ public class PetVisualController : MonoBehaviour
     public Sprite petSprite;      // 撫摸
     public Sprite chokeSprite;    // 噎住
 
+    [Header("Visual Effects")]
+    public Transform visualEffectsParent; // optional: drag the VisualEffects parent here
+    public GameObject chokeVFXPrefab; // fullscreen choke prefab (UI or canvas child)
+    private GameObject activeChokeVFX;
+
+    // Pre-placed VFX instances (place under VisualEffects parent in scene and disable them)
+    public GameObject eatVFX;  // shows when PlayEat is triggered
+    public GameObject hitVFX;  // shows when PlayHit is triggered
+    public GameObject petVFX;  // shows when PlayPet is triggered
+    public GameObject chokeVFXInstance; // optional pre-placed choke VFX (preferred)
+
     [Header("噎住 UI")]
     public GameObject chokeProgressBar;
     public Image chokeBar;
@@ -44,6 +55,22 @@ public class PetVisualController : MonoBehaviour
     private bool isChoking = false;
 
     private Coroutine currentAction = null;
+
+    void Awake()
+    {
+        // Ensure pre-placed VFX are hidden at start
+        if (eatVFX != null) eatVFX.SetActive(false);
+        if (hitVFX != null) hitVFX.SetActive(false);
+        if (petVFX != null) petVFX.SetActive(false);
+        if (chokeVFXInstance != null) chokeVFXInstance.SetActive(false);
+
+        // Try to auto-find VisualEffects parent if not assigned
+        if (visualEffectsParent == null)
+        {
+            GameObject found = GameObject.Find("VisualEffects");
+            if (found != null) visualEffectsParent = found.transform;
+        }
+    }
 
     // ========================
     // 顯示靜態狀態圖（回到 Idle）
@@ -65,6 +92,10 @@ public class PetVisualController : MonoBehaviour
 
         if (targetSprite != null)
             petImage.sprite = targetSprite;
+
+        // 播放階段切換音效
+        if (AudioController.Instance != null)
+            AudioController.Instance.PlayStateChange();
     }
 
     PetStageVisuals GetVisualsForStage(GameManager.PetStage stage)
@@ -84,6 +115,8 @@ public class PetVisualController : MonoBehaviour
     public void PlayEat()
     {
         if (currentAction != null) StopCoroutine(currentAction);
+        if (AudioController.Instance != null) AudioController.Instance.PlayEat();
+        ShowVFX(eatVFX);
         currentAction = StartCoroutine(EatAnimation());
     }
 
@@ -101,6 +134,8 @@ public class PetVisualController : MonoBehaviour
     public void PlayHit()
     {
         if (currentAction != null) StopCoroutine(currentAction);
+        if (AudioController.Instance != null) AudioController.Instance.PlayHit();
+        ShowVFX(hitVFX);
         currentAction = StartCoroutine(HitAnimation());
     }
 
@@ -118,6 +153,8 @@ public class PetVisualController : MonoBehaviour
     public void PlayPet()
     {
         if (currentAction != null) StopCoroutine(currentAction);
+        if (AudioController.Instance != null) AudioController.Instance.PlayPet();
+        ShowVFX(petVFX);
         currentAction = StartCoroutine(PetAnimation());
     }
 
@@ -143,6 +180,50 @@ public class PetVisualController : MonoBehaviour
 
         if (chokeSprite != null)
             petImage.sprite = chokeSprite;
+
+        if (AudioController.Instance != null) AudioController.Instance.PlayChoke();
+
+        // Use pre-placed choke VFX if assigned; otherwise instantiate fallback prefab
+        if (chokeVFXInstance != null)
+        {
+            activeChokeVFX = chokeVFXInstance;
+            ShowVFX(activeChokeVFX);
+        }
+        else if (chokeVFXPrefab != null)
+        {
+            Transform parent = visualEffectsParent;
+            if (parent == null)
+            {
+                GameObject found = GameObject.Find("VisualEffects");
+                if (found != null) parent = found.transform;
+            }
+
+            if (parent != null)
+            {
+                activeChokeVFX = Instantiate(chokeVFXPrefab, parent);
+                if (activeChokeVFX != null)
+                {
+                    // Ensure the instantiated VFX is active and on top
+                    activeChokeVFX.SetActive(true);
+                    activeChokeVFX.transform.SetAsLastSibling();
+                }
+
+                // If the prefab is a UI element, stretch it to full screen
+                var rt = activeChokeVFX.GetComponent<RectTransform>();
+                if (rt != null)
+                {
+                    rt.anchorMin = Vector2.zero;
+                    rt.anchorMax = Vector2.one;
+                    rt.anchoredPosition = Vector2.zero;
+                    rt.sizeDelta = Vector2.zero;
+                }
+                else
+                {
+                    activeChokeVFX.transform.localPosition = Vector3.zero;
+                    activeChokeVFX.transform.localScale = Vector3.one;
+                }
+            }
+        }
     }
 
     public void UpdateChokeProgress(float progress, int current, int goal)
@@ -156,6 +237,21 @@ public class PetVisualController : MonoBehaviour
     {
         isChoking = false;
         chokeProgressBar.SetActive(false);
+        // Hide or destroy active choke VFX if exists
+        if (activeChokeVFX != null)
+        {
+            // If it is the pre-placed instance, just deactivate; otherwise it was instantiated so destroy
+            if (activeChokeVFX == chokeVFXInstance)
+            {
+                HideVFX(activeChokeVFX);
+            }
+            else
+            {
+                Destroy(activeChokeVFX);
+            }
+            activeChokeVFX = null;
+        }
+
         ShowState(stage, mood);
     }
 
@@ -167,6 +263,39 @@ public class PetVisualController : MonoBehaviour
     public bool IsPlayingAnimation()
     {
         return currentAction != null;
+    }
+
+    // Helper: activate a pre-placed VFX (or reparent to VisualEffects if needed) and make it fullscreen
+    void ShowVFX(GameObject vfx)
+    {
+        if (vfx == null) return;
+
+        // If the VFX is not under the visualEffectsParent, reparent it for organization
+        if (visualEffectsParent != null && vfx.transform.parent != visualEffectsParent)
+            vfx.transform.SetParent(visualEffectsParent, false);
+
+        vfx.SetActive(true);
+        vfx.transform.SetAsLastSibling();
+
+        var rt = vfx.GetComponent<RectTransform>();
+        if (rt != null)
+        {
+            rt.anchorMin = Vector2.zero;
+            rt.anchorMax = Vector2.one;
+            rt.anchoredPosition = Vector2.zero;
+            rt.sizeDelta = Vector2.zero;
+        }
+        else
+        {
+            vfx.transform.localPosition = Vector3.zero;
+            vfx.transform.localScale = Vector3.one;
+        }
+    }
+
+    void HideVFX(GameObject vfx)
+    {
+        if (vfx == null) return;
+        vfx.SetActive(false);
     }
 
     // ========================
