@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using System.Collections.Generic;
 
 public class GameManager : MonoBehaviour
@@ -184,13 +185,41 @@ public class GameManager : MonoBehaviour
             currentStage = PetStage.Stage3;
             exp = stage3Threshold;
             Debug.Log("進化到第三階段！");
-            GameOver();
+            TriggerEndSceneTransition();
         }
         else if (currentStage == PetStage.Stage1 && exp >= stage2Threshold)
         {
             currentStage = PetStage.Stage2;
             exp = 0;
             Debug.Log("進化到第二階段！");
+        }
+    }
+
+    void TriggerEndSceneTransition()
+    {
+        if (endTransitionTriggered) return;
+        endTransitionTriggered = true;
+
+        Debug.Log("TriggerEndSceneTransition: checking active scene before switching to End");
+        string active = SceneManager.GetActiveScene().name;
+        Debug.Log($"TriggerEndSceneTransition: active scene = {active}");
+
+        if (active == "MainScene")
+        {
+            Debug.Log("TriggerEndSceneTransition: in MainScene -> switching to End");
+            if (senceChange != null)
+            {
+                senceChange.LoadScene("End");
+            }
+            else
+            {
+                Debug.LogWarning("TriggerEndSceneTransition: senceChange not assigned, using SceneManager.LoadScene fallback");
+                SceneManager.LoadScene("End");
+            }
+        }
+        else
+        {
+            Debug.Log("TriggerEndSceneTransition: not in MainScene, skipping automatic End transition");
         }
     }
 
@@ -239,6 +268,12 @@ public class GameManager : MonoBehaviour
     {
         return currentStage;
     }
+
+    [Header("場景轉換")]
+    public SenceChange senceChange;
+
+    private bool endTransitionTriggered = false;
+
 
     public bool IsChoking()
     {
