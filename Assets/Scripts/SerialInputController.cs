@@ -127,11 +127,19 @@ public class SerialInputController : MonoBehaviour
         }
         else if (input == "CLICK")
         {
-            gameManager.OnFeed();
+            // 如果正在噎住（進入拍背狀態），使用 Arduino 的按鈕改為當作打擊 (DOUBLE)
+            if (gameManager.IsChoking())
+                gameManager.OnHit();
+            else
+                gameManager.OnFeed();
         }
         else if (input == "DOUBLE")
         {
-            gameManager.OnHit();
+            // If choking, treat DOUBLE as TAP (rescue). Otherwise treat as Hit.
+            if (gameManager.IsChoking())
+                gameManager.OnTap();
+            else
+                gameManager.OnHit();
         }
         else if (input == "TAP")
         {

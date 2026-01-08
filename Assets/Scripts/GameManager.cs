@@ -9,13 +9,13 @@ public class GameManager : MonoBehaviour
     public enum PetStage { Stage1, Stage2, Stage3 }
 
     [Header("狀態數值")]
-    public int mood = 50;
+    public int mood = 0;
     public int feed = 0;
     public int exp = 0;
 
     [Header("進化門檻")]
     public int stage2Threshold = 100;
-    public int stage3Threshold = 600;
+    public int stage3Threshold = 150;
 
     [Header("當前階段")]
     public PetStage currentStage = PetStage.Stage1;
@@ -36,12 +36,12 @@ public class GameManager : MonoBehaviour
     [Tooltip("打擊時減少的心情")]
     public int moodDecreaseOnHit = 15;
     [Tooltip("打擊時增加的經驗值")]
-    public int expIncreaseOnHit = 2;
+    public int expIncreaseOnHit = 10;
     
     [Tooltip("嘔吐時減少的飽食度")]
-    public int feedDecreaseOnVomit = 20;
+    public int feedDecreaseOnVomit = 25;
     [Tooltip("嘔吐時減少的心情")]
-    public int moodDecreaseOnVomit = 10;
+    public int moodDecreaseOnVomit = 40;
 
     [Header("引用")]
     public PetVisualController petVisual;

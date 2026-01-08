@@ -6,6 +6,9 @@ public class ButtonAnimationController : MonoBehaviour
     public Animator animator;
     public string nextSceneName;
     public SenceChange senceChange;
+    [Header("Audio")]
+    public AudioSource audioSource;
+    public AudioClip clickSound;
 
     private bool hasPressed = false;
 
@@ -20,6 +23,14 @@ public class ButtonAnimationController : MonoBehaviour
                 animator.SetTrigger("Press");
             else
                 Debug.LogWarning("ButtonAnimationController: animator is null");
+            // 播放按鈕音效
+            if (clickSound != null)
+            {
+                if (audioSource != null)
+                    audioSource.PlayOneShot(clickSound);
+                else
+                    AudioSource.PlayClipAtPoint(clickSound, Camera.main != null ? Camera.main.transform.position : transform.position);
+            }
             // 臨時直接呼叫以測試場景切換流程是否正常
             LoadNextScene();
         }

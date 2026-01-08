@@ -235,6 +235,8 @@ MonoBehaviour:
   animator: {fileID: 83863667}
   nextSceneName: MainScene
   senceChange: {fileID: 982836999}
+  audioSource: {fileID: 0}
+  clickSound: {fileID: 8300000, guid: af36272ae7dd5c94083b365c300de266, type: 3}
 --- !u!1 &255129433
 GameObject:
   m_ObjectHideFlags: 0

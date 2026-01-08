@@ -462,9 +462,9 @@ MonoBehaviour:
     happySprite: {fileID: 21300000, guid: 83fcf494a8b95b244b31f1c2e086c3ce, type: 3}
     angrySprite: {fileID: 21300000, guid: c83040c9c7b13214ebe9cb1d37e02c59, type: 3}
   stage3Visuals:
-    normalSprite: {fileID: 1799298741, guid: cc1a9b28727cf4cfe86b01924ba95534, type: 3}
-    happySprite: {fileID: 1005678638, guid: cc1a9b28727cf4cfe86b01924ba95534, type: 3}
-    angrySprite: {fileID: 1436134096, guid: cc1a9b28727cf4cfe86b01924ba95534, type: 3}
+    normalSprite: {fileID: 21300000, guid: 83fcf494a8b95b244b31f1c2e086c3ce, type: 3}
+    happySprite: {fileID: 21300000, guid: 83fcf494a8b95b244b31f1c2e086c3ce, type: 3}
+    angrySprite: {fileID: 21300000, guid: 83fcf494a8b95b244b31f1c2e086c3ce, type: 3}
   eatSprite: {fileID: 21300000, guid: 871b7164bf1bc1d42a5873355ca19f73, type: 3}
   hitSprite: {fileID: 21300000, guid: a2a53d659b4a46d40a14cd115640e116, type: 3}
   petSprite: {fileID: 21300000, guid: 2abd5a9a1b0c8e748887c67649f85ead, type: 3}
@@ -1285,7 +1285,7 @@ MonoBehaviour:
   sfxSource: {fileID: 0}
   sfxVolume: 1
   stateChangeClip: {fileID: 0}
-  eatClip: {fileID: 8300000, guid: 01c211baaae41ee4e8ac2a0db205ee23, type: 3}
+  eatClip: {fileID: 8300000, guid: f3accbd96a4d72b4eaccaaf87c0d3b62, type: 3}
   hitClip: {fileID: 8300000, guid: 541cea6dfd01ef543b8736db03e94b19, type: 3}
   petClip: {fileID: 8300000, guid: 806bdccbd8ef8304590bd5e662281b88, type: 3}
   chokeClip: {fileID: 8300000, guid: f0fffe7412ccd9e4680a4c84275d8294, type: 3}
@@ -2923,21 +2923,21 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ebd0c19e36e3f46249e5fc0d9bb16c01, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  mood: 50
+  mood: 0
   feed: 0
   exp: 0
   stage2Threshold: 100
-  stage3Threshold: 250
+  stage3Threshold: 150
   currentStage: 0
   feedIncreaseOnFeed: 5
-  moodIncreaseOnFeed: 5
-  expIncreaseOnFeed: 5
+  moodIncreaseOnFeed: 10
+  expIncreaseOnFeed: 10
   moodIncreaseOnPet: 10
-  expIncreaseOnPet: 10
-  moodDecreaseOnHit: 15
-  expIncreaseOnHit: 2
-  feedDecreaseOnVomit: 20
-  moodDecreaseOnVomit: 10
+  expIncreaseOnPet: 15
+  moodDecreaseOnHit: 20
+  expIncreaseOnHit: 10
+  feedDecreaseOnVomit: 40
+  moodDecreaseOnVomit: 20
   petVisual: {fileID: 194410242}
   serialController: {fileID: 0}
   maxMood: 100
